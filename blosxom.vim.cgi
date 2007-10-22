@@ -13,10 +13,6 @@ call Out("Content-Type: text/html; charset=UTF-8\n\n")
 
 
 set hidden
-set termencoding=utf-8
-set encoding=utf-8
-set fileencodings=utf-8
-set fileencoding=utf-8
 
 function Inspect(obj)
 	call Out(string(a:obj) . "\n")
@@ -31,7 +27,7 @@ function Template(filename, dict)
 	call Out(retv)
 endfunction
 
-call Template("head.html", {"title": "This is Vim.", "home": $SCRIPT_NAME})
+call Template("head.html", {"title": "This is Vim."})
 
 
 function CompareByTime(a, b)
@@ -41,48 +37,18 @@ function CompareByTime(a, b)
 endfunction
 
 call Inspect($PATH_INFO)
-call Inspect($SCRIPT_NAME)
-
-
 call Out(strftime("%Y-%m-%d %H:%M:%S\n"))
-
-
-function FilteringByPathInfo(entries)
-	let pathinfo = split($PATH_INFO, "/")
-	call Inspect(pathinfo)
-	if len(pathinfo) > 0
-		call Inspect(str2nr(pathinfo[0]))
-		if str2nr(pathinfo[0]) == 0
-			call Inspect("path")
-			call filter(a:entries, '!match(v:val["name"], "^'.$PATH_INFO.'")')
-		else
-			"call Inspect('strftime("%Y", v:val["time"]) == '.string(pathinfo[0]))
-			call filter(a:entries, 'strftime("%Y", v:val["time"]) == '.string(pathinfo[0]))
-			if len(pathinfo) > 1
-				call filter(a:entries, 'strftime("%m", v:val["time"]) == '.string(pathinfo[1]))
-				if len(pathinfo) > 2
-					call filter(a:entries, 'strftime("%d", v:val["time"]) == '.string(pathinfo[2]))
-				end
-			endif
-		endif
-	endif
-endfunction
-
 let files = split(glob("data/**/*.txt"), "\n")
 let entries = sort(map(files, '{"path": v:val, "time": getftime(v:val)}'), "CompareByTime")
 for ent in entries
 	let file = readfile(ent["path"])
 	let ent["title"] = file[0]
 	let ent["body"] = join(file[1:], "\n")
-	let ent["name"] = substitute(ent["path"], '^data\|.[^.]*$', "", "g")
+	let ent["name"] = substitute(ent["path"], '^data\|.[^.]*$', "", "")
 	let ent["date"] = strftime("%Y-%m-%d %H:%M:%S", ent["time"])
-	let ent["home"] = $SCRIPT_NAME
+	let ent["home"] = $SCRIPT_NAME ? $SCRIPT_NAME : ""
 	let ent["path"] = join(split(ent["home"], "/")[0:-1], "/")
-endfor
-
-call FilteringByPathInfo(entries)
-
-for ent in entries
+	" call Out(ent["title"] . " " . ent["path"] . "\n")
 	call Template("story.html", ent)
 endfor
 
@@ -91,5 +57,4 @@ call Template("foot.html", {"version": version})
 " Output
 silent exe "w " . tempname()
 silent exe "!cat %"
-"silent echo join(getline(1, line("$")), "\n")
 q!
