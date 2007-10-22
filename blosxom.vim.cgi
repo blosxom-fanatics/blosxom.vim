@@ -31,7 +31,7 @@ function Template(filename, dict)
 	call Out(retv)
 endfunction
 
-call Template("head.html", {"title": "This is Vim."})
+call Template("head.html", {"title": "This is Vim.", "home": $SCRIPT_NAME})
 
 
 function CompareByTime(a, b)
@@ -42,7 +42,32 @@ endfunction
 
 call Inspect($PATH_INFO)
 call Inspect($SCRIPT_NAME)
+
+
 call Out(strftime("%Y-%m-%d %H:%M:%S\n"))
+
+
+function FilteringByPathInfo(entries)
+	let pathinfo = split($PATH_INFO, "/")
+	call Inspect(pathinfo)
+	if len(pathinfo) > 0
+		call Inspect(str2nr(pathinfo[0]))
+		if str2nr(pathinfo[0]) == 0
+			call Inspect("path")
+			call filter(a:entries, '!match(v:val["name"], "^'.$PATH_INFO.'")')
+		else
+			"call Inspect('strftime("%Y", v:val["time"]) == '.string(pathinfo[0]))
+			call filter(a:entries, 'strftime("%Y", v:val["time"]) == '.string(pathinfo[0]))
+			if len(pathinfo) > 1
+				call filter(a:entries, 'strftime("%m", v:val["time"]) == '.string(pathinfo[1]))
+				if len(pathinfo) > 2
+					call filter(a:entries, 'strftime("%d", v:val["time"]) == '.string(pathinfo[2]))
+				end
+			endif
+		endif
+	endif
+endfunction
+
 let files = split(glob("data/**/*.txt"), "\n")
 let entries = sort(map(files, '{"path": v:val, "time": getftime(v:val)}'), "CompareByTime")
 for ent in entries
@@ -53,7 +78,11 @@ for ent in entries
 	let ent["date"] = strftime("%Y-%m-%d %H:%M:%S", ent["time"])
 	let ent["home"] = $SCRIPT_NAME
 	let ent["path"] = join(split(ent["home"], "/")[0:-1], "/")
-	" call Out(ent["title"] . " " . ent["path"] . "\n")
+endfor
+
+call FilteringByPathInfo(entries)
+
+for ent in entries
 	call Template("story.html", ent)
 endfor
 
