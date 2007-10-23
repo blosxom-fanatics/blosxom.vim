@@ -44,8 +44,8 @@ try
 	function FilteringByPathInfo(entries)
 		let pathinfo = split($PATH_INFO, "/")
 		if len(pathinfo) > 0
-			let pathinfo[len(pathinfo)-1] = fnamemodify($PATH_INFO, ":t:r")
 			if str2nr(pathinfo[0]) == 0
+				let pathinfo[len(pathinfo)-1] = fnamemodify($PATH_INFO, ":t:r")
 				call filter(a:entries, '!match(v:val["name"], "^'.$PATH_INFO.'")')
 			else
 				"call Inspect('strftime("%Y", v:val["time"]) == '.string(pathinfo[0]))
