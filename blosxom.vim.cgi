@@ -32,6 +32,7 @@ try
 	if flavour == ""
 		let flavour = "html"
 	endif
+	silent let $PATH_INFO = substitute($PATH_INFO, "\\v(index){0,1}\\..*", "", "")
 
 	call Template("head.".flavour, {"title": "This is Vim.", "home": $SCRIPT_NAME})
 
