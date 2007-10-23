@@ -9,84 +9,81 @@ function Out(out)
 	silent exe "normal a" . a:out
 endfunction
 
-call Out("Content-Type: text/html; charset=UTF-8\n\n")
+try
+	set hidden
+	set termencoding=utf-8
+	set encoding=utf-8
+	set fileencodings=utf-8
+	set fileencoding=utf-8
 
+	function Inspect(obj)
+		call Out(string(a:obj) . "\n")
+	endfunction
 
-set hidden
-set termencoding=utf-8
-set encoding=utf-8
-set fileencodings=utf-8
-set fileencoding=utf-8
+	function Template(filename, dict)
+		let retv = join(readfile(a:filename), "\n")
+		for key in keys(a:dict)
+			silent let retv = substitute(retv, "#{".key."}", substitute(a:dict[key], '\', '\\', 'g'), "g")
+		endfor
+		call Out(retv)
+	endfunction
 
-function Inspect(obj)
-	call Out(string(a:obj) . "\n")
-endfunction
+	let flavour = fnamemodify($PATH_INFO, ":e")
+	if flavour == ""
+		let flavour = "html"
+	endif
 
+	call Template("head.".flavour, {"title": "This is Vim.", "home": $SCRIPT_NAME})
 
-function Template(filename, dict)
-	let retv = join(readfile(a:filename), "\n")
-	for key in keys(a:dict)
-		silent let retv = substitute(retv, "#{".key."}", substitute(a:dict[key], '\', '\\', 'g'), "g")
-	endfor
-	call Out(retv)
-endfunction
+	function CompareByTime(a, b)
+		let a = a:a["time"]
+		let b = a:b["time"]
+		return a == b ? 0 : a > b ? -1 : 1
+	endfunction
 
-call Template("head.html", {"title": "This is Vim.", "home": $SCRIPT_NAME})
-
-
-function CompareByTime(a, b)
-	let a = a:a["time"]
-	let b = a:b["time"]
-	return a == b ? 0 : a > b ? -1 : 1
-endfunction
-
-call Inspect($PATH_INFO)
-call Inspect($SCRIPT_NAME)
-
-
-call Out(strftime("%Y-%m-%d %H:%M:%S\n"))
-
-
-function FilteringByPathInfo(entries)
-	let pathinfo = split($PATH_INFO, "/")
-	call Inspect(pathinfo)
-	if len(pathinfo) > 0
-		call Inspect(str2nr(pathinfo[0]))
-		if str2nr(pathinfo[0]) == 0
-			call Inspect("path")
-			call filter(a:entries, '!match(v:val["name"], "^'.$PATH_INFO.'")')
-		else
-			"call Inspect('strftime("%Y", v:val["time"]) == '.string(pathinfo[0]))
-			call filter(a:entries, 'strftime("%Y", v:val["time"]) == '.string(pathinfo[0]))
-			if len(pathinfo) > 1
-				call filter(a:entries, 'strftime("%m", v:val["time"]) == '.string(pathinfo[1]))
-				if len(pathinfo) > 2
-					call filter(a:entries, 'strftime("%d", v:val["time"]) == '.string(pathinfo[2]))
-				end
+	function FilteringByPathInfo(entries)
+		let pathinfo = split($PATH_INFO, "/")
+		if len(pathinfo) > 0
+			let pathinfo[len(pathinfo)-1] = fnamemodify($PATH_INFO, ":t:r")
+			if str2nr(pathinfo[0]) == 0
+				call filter(a:entries, '!match(v:val["name"], "^'.$PATH_INFO.'")')
+			else
+				"call Inspect('strftime("%Y", v:val["time"]) == '.string(pathinfo[0]))
+				call filter(a:entries, 'strftime("%Y", v:val["time"]) == '.string(pathinfo[0]))
+				if len(pathinfo) > 1
+					call filter(a:entries, 'strftime("%m", v:val["time"]) == '.string(pathinfo[1]))
+					if len(pathinfo) > 2
+						call filter(a:entries, 'strftime("%d", v:val["time"]) == '.string(pathinfo[2]))
+					end
+				endif
 			endif
 		endif
-	endif
-endfunction
+	endfunction
 
-let files = split(glob("data/**/*.txt"), "\n")
-let entries = sort(map(files, '{"path": v:val, "time": getftime(v:val)}'), "CompareByTime")
-for ent in entries
-	let file = readfile(ent["path"])
-	let ent["title"] = file[0]
-	let ent["body"] = join(file[1:], "\n")
-	let ent["name"] = substitute(ent["path"], '^data\|.[^.]*$', "", "g")
-	let ent["date"] = strftime("%Y-%m-%d %H:%M:%S", ent["time"])
-	let ent["home"] = $SCRIPT_NAME
-	let ent["path"] = join(split(ent["home"], "/")[0:-1], "/")
-endfor
+	let files = split(glob("data/**/*.txt"), "\n")
+	let entries = sort(map(files, '{"path": v:val, "time": getftime(v:val)}'), "CompareByTime")
+	for ent in entries
+		let file = readfile(ent["path"])
+		let ent["title"] = file[0]
+		let ent["body"]  = join(file[1:], "\n")
+		let ent["name"]  = substitute(ent["path"], '^data\|.[^.]*$', "", "g")
+		let ent["date"]  = strftime("%Y-%m-%d %H:%M:%S", ent["time"])
+		let ent["home"]  = $SCRIPT_NAME
+		let ent["path"]  = join(split(ent["home"], "/")[0:-1], "/")
+	endfor
 
-call FilteringByPathInfo(entries)
+	call FilteringByPathInfo(entries)
 
-for ent in entries
-	call Template("story.html", ent)
-endfor
+	for ent in entries
+		call Template("story.".flavour, ent)
+	endfor
 
-call Template("foot.html", {"version": version})
+	call Template("foot.".flavour, {"version": version})
+catch /.*/
+	call Out("Content-Type: text/plain; charset=UTF-8\n\n")
+	call Out(v:exception . "\n")
+	call Out(v:throwpoint)
+endtry
 
 " Output
 silent exe "w " . tempname()
